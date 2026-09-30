@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Recording Studio: Pip's AI Lab</title>
+<link rel="icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F3F8FF;--paper:#fff;--ink:#1D2B53;--muted:#56628A;--line:#DCE5F4;--grape:#6C5CE7;--leaf:#12A88B;--sun:#FFC83D;--no:#E5484D;--pip:#6C5CE7;--girl:#FF5C8A;--boy:#1E88E5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Lexend",system-ui,sans-serif;font-size:16px;line-height:1.5}
+h1,h2,h3{font-family:"Baloo 2","Lexend",sans-serif;margin:0;line-height:1.15}
+.wrap{max-width:1180px;margin:0 auto;padding:22px}
+.top{display:flex;align-items:center;gap:14px;margin-bottom:14px}.top img{width:54px}.top h1{font-size:34px}
+section.card{background:var(--paper);border:2px solid var(--line);border-radius:20px;padding:18px 20px;margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0}
+label{font-weight:600}input,select{font:inherit;color:inherit;border:2px solid var(--line);border-radius:12px;padding:8px 10px;background:#fff}
+input[type=password]{min-width:280px}
+.btn{font:inherit;font-weight:700;border:2px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;cursor:pointer}
+.btn.main{background:var(--grape);border-color:var(--grape);color:#fff}.btn.ai{background:var(--sun);border-color:var(--sun)}
+.btn:disabled{opacity:.45;cursor:not-allowed}.btn.small{padding:4px 10px;font-size:14px}
+.note{color:var(--muted);font-size:14px;margin:6px 0}
+.voices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+.voice{border:2px solid var(--line);border-radius:16px;padding:12px}.voice h3{font-size:20px}
+.voice[data-r=pip] h3{color:var(--pip)}.voice[data-r=girl] h3{color:var(--girl)}.voice[data-r=boy] h3{color:var(--boy)}
+.voice select{width:100%;margin:6px 0}.voice textarea{width:100%;font:inherit;font-size:14px;border:2px solid var(--line);border-radius:10px;padding:6px 8px;min-height:62px}
+.studio{display:grid;grid-template-columns:380px 1fr;gap:16px;align-items:start}
+.list{background:var(--paper);border:2px solid var(--line);border-radius:20px;max-height:74vh;overflow:auto;padding:8px}
+.list h3{font-size:16px;margin:12px 6px 4px;color:var(--muted)}
+.item{display:grid;grid-template-columns:12px 1fr;gap:8px;align-items:start;width:100%;text-align:left;border:0;background:none;border-radius:10px;padding:6px 8px;font:inherit;font-size:14px;cursor:pointer}
+.item:hover{background:var(--bg)}.item.cur{background:#EDE9FF}
+.item i{width:12px;height:12px;border-radius:50%;background:var(--line);margin-top:4px}.item.done i{background:var(--leaf)}
+.item small{display:block;color:var(--muted);font-size:12px}
+.tag{display:inline-block;border-radius:999px;padding:0 8px;font-size:12px;font-weight:700;color:#fff;margin-right:6px}
+.tag.pip{background:var(--pip)}.tag.girl{background:var(--girl)}.tag.boy{background:var(--boy)}
+.stage{background:var(--paper);border:2px solid var(--line);border-radius:20px;padding:20px;position:sticky;top:12px}
+.big{font-size:26px;font-weight:600;margin:10px 0 16px;min-height:80px}
+.meta{color:var(--muted);font-size:14px}
+.pend{background:#FFF6DA;border-radius:14px;padding:10px 12px;margin-top:12px}
+#status{min-height:24px;margin-top:10px;font-weight:600}.good{color:var(--leaf)}.bad{color:var(--no)}
+.filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+details summary{cursor:pointer;font-weight:700}
+.err{background:#FFE4E6;border-radius:12px;padding:10px 12px}.warn{background:#FFF6DA;border-radius:12px;padding:10px 12px}
+@media (max-width:860px){.voices,.studio{grid-template-columns:1fr}.stage{position:static}}
+</style></head>
+<body><div class="wrap">
+ <div class="top"><img src="../apple-touch-icon.png" alt=""><div><h1>Recording Studio</h1><div class="note">Make AI voices for every line Pip's AI Lab says out loud. Only you need this page. It is not linked from the site.</div></div></div>
+
+ <section class="card">
+  <h2>1. AI voice setup</h2>
+  <div class="row"><label for="aiKey">Gemini API key</label><input type="password" id="aiKey" autocomplete="off" spellcheck="false" placeholder="Key from AI Studio">
+   <button class="btn main" id="aiKeySave">Save key</button><button class="btn" id="aiKeyDel">Remove key</button></div>
+  <p class="note" id="aiKeyState"></p>
+  <div class="row"><label for="aiModel">Model</label><select id="aiModel">
+   <option value="gemini-3.8-flash-tts">Gemini 3.8 Flash TTS (best pronunciation and expression)</option>
+   <option value="gemini-3.8-flash-lite-tts">Gemini 3.8 Flash-Lite TTS (fast and cheap)</option>
+   <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS (100 a day, separate limit)</option>
+   <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS (100 a day, separate limit)</option>
+   <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS (50 a day, separate limit)</option></select>
+   <label for="aiPace">Pace</label><select id="aiPace"><option value="slow">Slow</option><option value="calm">A little slow</option><option value="normal">Normal</option></select></div>
+  <p class="note">Each TTS model has its own daily limit and a limit of 10 per minute. If one model hits its daily limit, switch models here and keep filling. Limits reset at midnight Pacific time (about 3 a.m. in Indiana).</p>
+  <div class="voices">
+   <div class="voice" data-r="pip"><h3>Pip the robot</h3><select id="v_pip"></select><textarea id="s_pip" aria-label="Pip speaking style"></textarea><button class="btn small" data-test="pip">Test Pip</button></div>
+   <div class="voice" data-r="girl"><h3>Girl buddies</h3><div class="note">Mina, Ella, Aiyana, Sofia, Zuri</div><select id="v_girl"></select><textarea id="s_girl" aria-label="Girl buddy speaking style"></textarea><button class="btn small" data-test="girl">Test girl voice</button></div>
+   <div class="voice" data-r="boy"><h3>Boy buddies</h3><div class="note">Mateo, Arjun, Jaylen, Malik, Liam, Kai</div><select id="v_boy"></select><textarea id="s_boy" aria-label="Boy buddy speaking style"></textarea><button class="btn small" data-test="boy">Test boy voice</button></div>
+  </div>
+  <label class="note" style="display:block;margin-top:10px"><input type="checkbox" id="share"> Save each buddy line for both girl and boy buddies at once (half as many AI requests, one voice for all buddies)</label>
+  <details style="margin-top:10px"><summary>How to get an API key (one time)</summary><ol>
+   <li>Sign in at <code>aistudio.google.com</code> with a Google account.</li>
+   <li>Click Get API key, then Create API key.</li>
+   <li>Free limits run out fast. To make many clips, turn on billing on the same page. When a limit is hit, this tool waits and tries again.</li>
+   <li>Paste the key above and save. It stays only in this browser. It is never put in the code, the repository, or the zip files.</li></ol></details>
+  <div id="loadErr"></div>
+ </section>
+
+ <section class="studio" id="studio" hidden>
+  <div><div class="filter"><button class="btn small" data-f="all">All</button><button class="btn small" data-f="todo">Not made yet</button><button class="btn small" data-f="pip">Pip</button><button class="btn small" data-f="girl">Girl</button><button class="btn small" data-f="boy">Boy</button></div>
+   <div class="list" id="list" aria-label="Lines to record"></div></div>
+  <div class="stage">
+   <div class="meta" id="meta"></div><div class="big" id="big"></div>
+   <div class="row"><button class="btn ai" id="aiBtn">Make AI voice (A)</button><button class="btn" id="playBtn">Play (P)</button><button class="btn" id="prevBtn">Previous</button><button class="btn" id="nextBtn">Next</button><button class="btn" id="delBtn">Delete this clip</button></div>
+   <div class="pend" id="aiPend" hidden><span>New AI voice ready. Not saved yet.</span>
+    <div class="row"><button class="btn main" id="aiCommit">Save this one (S)</button><button class="btn" id="aiHear">Listen again</button><button class="btn" id="aiAgain">Make again</button></div></div>
+   <label class="note" style="display:block"><input type="checkbox" id="auto" checked> Go to the next line after saving</label>
+   <p id="status" aria-live="polite"></p>
+  </div>
+ </section>
+
+ <section class="card" id="exportSec" hidden>
+  <h2>2. Fill and download</h2>
+  <p id="count"></p>
+  <div class="row"><button class="btn ai" id="aiFill">Fill every missing line with AI</button><button class="btn main" id="exportNew">Download new or changed clips</button><button class="btn" id="exportAll">Download everything (100 per zip)</button></div>
+  <p class="note"><span id="sinceTxt"></span> <button class="btn small" id="markSent">Mark everything as uploaded</button></p>
+  <p id="exStatus" aria-live="polite"></p><div id="dlParts" class="row"></div>
+  <details><summary>How to upload to GitHub</summary><ol>
+   <li>Unzip the download. You get an <code>audio</code> folder. Do not upload the zip itself.</li>
+   <li>At the top of the repository (where <code>index.html</code> is), click Add file, then Upload files, and drag the whole <code>audio</code> folder in. If you drag only the files inside, they end up in the wrong place.</li>
+   <li>GitHub on the web takes up to 100 files at a time, so each zip holds at most 100 files. Upload part 1, then part 2, and so on. They all merge into the same <code>audio</code> folder.</li>
+   <li><code>manifest.json</code> is always in part 1 and lists every clip, including the ones already on the site. Always upload part 1.</li>
+   <li>Check: open <code>your-site/audio/manifest.json</code>. If you see text, it worked. Lines without a clip are read by the device voice.</li>
+   <li>After remaking clips, download new or changed clips and upload them the same way. File names come from the words and the voice, so nothing collides.</li></ol></details>
+ </section>
+</div>
+<script>
+/* Recording Studio for Pip's AI Lab
+   List: read from the site itself (../?clips=1 then listClips()), so it always matches the site.
+   Voice: Gemini TTS called from this browser. The key stays in localStorage only.
+   Output: 22,050 Hz mono WAV named like the site expects, plus audio/manifest.json. */
+const OUT_RATE=22050;
+const $=id=>document.getElementById(id);
+let clips=[],view=[],cur=0,filter="all",actx=null,lastAudio=null;
+const saved=new Set(),live=new Set(),savedAt=new Map();
+const have=id=>saved.has(id)||live.has(id);
+function status(m,k){const s=$("status");s.textContent=m||"";s.className=k||"";}
+function exStat(m,k){const s=$("exStatus");s.textContent=m||"";s.className=k||"";}
+function ensureCtx(){if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+
+/* storage */
+const dbp=new Promise((res,rej)=>{try{const r=indexedDB.open("pips-record",1);r.onupgradeneeded=()=>r.result.createObjectStore("clips",{keyPath:"id"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});
+function tx(mode,fn){return dbp.then(db=>new Promise((res,rej)=>{const t=db.transaction("clips",mode),st=t.objectStore("clips");let out;const q=fn(st);if(q)q.onsuccess=()=>{out=q.result;};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);}));}
+const idbPut=r=>tx("readwrite",st=>st.put(r)).then(v=>{savedAt.set(r.id,r.at);sinceNote();return v;});
+const idbGet=id=>tx("readonly",st=>st.get(id));
+const idbDel=id=>tx("readwrite",st=>st.delete(id)).then(v=>{savedAt.delete(id);sinceNote();return v;});
+const idbAll=()=>tx("readonly",st=>st.getAll());
+
+/* load list from the site */
+function listFromSite(){return new Promise(res=>{const f=document.createElement("iframe");f.hidden=true;f.src="../?clips=1";
+ const done=v=>{res(v);f.remove();};const t=setTimeout(()=>done([]),15000);
+ f.addEventListener("load",()=>{clearTimeout(t);let l=[];try{l=f.contentWindow.listClips();}catch(e){}done(Array.isArray(l)?l:[]);});document.body.append(f);});}
+async function loadList(){
+ clips=await listFromSite();
+ try{const r=await fetch("../audio/manifest.json",{cache:"no-cache"});const j=r.ok?await r.json():null;if(j&&j.clips)Object.keys(j.clips).forEach(id=>live.add(id));}catch(e){}
+ if(!clips.length){$("loadErr").innerHTML='<div class="err">Could not read the list of lines. This page only works from the site address (for example https://yourname.github.io/pips-ai-lab/record/), not from a file on your computer.</div>';return;}
+ try{(await idbAll()).forEach(r=>{saved.add(r.id);savedAt.set(r.id,r.at);});sinceNote();}catch(e){$("loadErr").innerHTML='<div class="warn">This browser cannot keep clips. Download before closing the window.</div>';}
+ $("studio").hidden=false;$("exportSec").hidden=false;applyFilter();const m=view.findIndex(c=>!have(c.id));cur=m>=0?m:0;renderList();show();
+}
+function applyFilter(){view=clips.filter(c=>filter==="all"||(filter==="todo"?!have(c.id):c.role===filter));if(cur>=view.length)cur=0;}
+const RN={pip:"Pip",girl:"Girl",boy:"Boy"};
+function renderList(){
+ const box=$("list");box.innerHTML="";let grp="";
+ view.forEach((c,i)=>{if(c.group!==grp){grp=c.group;const n=view.filter(x=>x.group===grp),d=n.filter(x=>have(x.id)).length;const h=document.createElement("h3");h.textContent=grp+"  "+d+" / "+n.length;box.append(h);}
+  const b=document.createElement("button");b.className="item"+(have(c.id)?" done":"")+(i===cur?" cur":"");
+  b.innerHTML='<i></i><span><span class="tag '+c.role+'">'+RN[c.role]+'</span><span class="t"></span><small></small></span>';
+  b.querySelector(".t").textContent=c.text;b.querySelector("small").textContent=c.label;b.onclick=()=>{cur=i;renderList();show();b.blur();};box.append(b);});
+ const total=clips.length,doneN=clips.filter(c=>have(c.id)).length,inB=clips.filter(c=>saved.has(c.id)).length,onSite=clips.filter(c=>live.has(c.id)&&!saved.has(c.id)).length;
+ $("count").textContent=`${doneN} of ${total} lines have a voice, ${total-doneN} to go. ${inB} clips are saved in this browser`+(onSite?`, and ${onSite} more are already on the site`:"")+". Zips include only clips saved in this browser.";
+ const el=box.querySelector(".item.cur");if(el)el.scrollIntoView({block:"nearest"});
+}
+function show(){const c=view[cur];if(!c){$("big").textContent=filter==="todo"?"Every line has a voice.":"";$("meta").textContent="";return;}
+ $("meta").textContent=c.group+"   "+RN[c.role]+" voice   "+c.label+(saved.has(c.id)?"   saved in this browser":live.has(c.id)?"   on the site":"");
+ if(aiPending&&aiPending.id!==c.id)aiPending=null;$("aiPend").hidden=!aiPending;$("big").textContent=c.text;
+ $("playBtn").disabled=!saved.has(c.id);$("delBtn").disabled=!saved.has(c.id);status("");}
+function go(d){cur=Math.max(0,Math.min(view.length-1,cur+d));renderList();show();}
+
+/* audio */
+function playBytes(bytes){try{if(lastAudio){lastAudio.pause();URL.revokeObjectURL(lastAudio.src);}const a=new Audio(URL.createObjectURL(new Blob([bytes],{type:"audio/wav"})));lastAudio=a;a.play().catch(()=>{});return a;}catch(e){return null;}}
+async function playCurrent(){const c=view[cur];if(!c||!saved.has(c.id))return;const r=await idbGet(c.id);if(r)playBytes(new Uint8Array(r.wav));}
+async function deleteCurrent(){const c=view[cur];if(!c)return;await idbDel(c.id);saved.delete(c.id);renderList();show();status("Deleted.");}
+/* Trim silence, even out loudness, convert to 22,050 Hz mono WAV */
+async function processBlob(blob, opts = {}){
+  const arr = await blob.arrayBuffer();
+  let buf;
+  ensureCtx();
+  try { buf = await actx.decodeAudioData(arr); }
+  catch(e) { throw new Error('Could not read the audio. Try another browser.'); }
+  const sr = buf.sampleRate, len = buf.length, ch = buf.numberOfChannels;
+  if(!opts.ai && len < sr * 0.35) throw new Error('Too short.');
+  const mono = new Float32Array(len);
+  for(let c = 0; c < ch; c++){ const d = buf.getChannelData(c); for(let i = 0; i < len; i++) mono[i] += d[i] / ch; }
+  
+  const win = Math.max(1, Math.floor(sr * 0.01));
+  
+  const guard = opts.ai ? 0 : Math.floor(0.15 * sr / win);
+  const rms = [];
+  for(let i = 0; i < len; i += win){
+    let s = 0; const e = Math.min(len, i + win);
+    for(let j = i; j < e; j++) s += mono[j] * mono[j];
+    rms.push(Math.sqrt(s / (e - i)));
+  }
+  let peakR = 0;
+  for(let k = guard; k < rms.length - guard; k++) peakR = Math.max(peakR, rms[k]);
+  if(peakR < 0.004) throw new Error('The audio is almost silent. Make it again.');
+  const th = Math.max(0.006, peakR * 0.1);
+  let a = -1, b = -1;
+  for(let k = guard; k < rms.length - guard; k++) if(rms[k] > th){ if(a < 0) a = k; b = k; }
+  const start = Math.max(0, a * win - Math.floor(sr * 0.05));
+  const end = Math.min(len, (b + 1) * win + Math.floor(sr * 0.12));
+  const seg = mono.slice(start, end);
+  let peak = 0; for(let i = 0; i < seg.length; i++) peak = Math.max(peak, Math.abs(seg[i]));
+  const gain = Math.min(8, 0.89 / (peak || 1));
+  const fade = Math.floor(sr * 0.008);
+  for(let i = 0; i < seg.length; i++){
+    let g = gain;
+    if(i < fade) g *= i / fade;
+    if(i > seg.length - fade) g *= (seg.length - i) / fade;
+    seg[i] *= g;
+  }
+  const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  const oac = new OAC(1, Math.ceil(seg.length * OUT_RATE / sr), OUT_RATE);
+  const inBuf = oac.createBuffer(1, seg.length, sr);
+  inBuf.getChannelData(0).set(seg);
+  const node = oac.createBufferSource(); node.buffer = inBuf; node.connect(oac.destination); node.start();
+  const out = await oac.startRendering();
+  return encodeWav(out.getChannelData(0), OUT_RATE);
+}
+function encodeWav(samples, rate){
+  const buf = new ArrayBuffer(44 + samples.length * 2), v = new DataView(buf);
+  const w = (o, str) => { for(let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for(let i = 0, o = 44; i < samples.length; i++, o += 2){
+    const s = Math.max(-1, Math.min(1, samples[i]));
+    v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return new Uint8Array(buf);
+}
+
+
+/* uncompressed zip */
+const CRC = (() => { const t = new Uint32Array(256); for(let n = 0; n < 256; n++){ let c = n; for(let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for(let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files){
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true); lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, f.data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true); ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+    ch.setUint16(28, name.length, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + size;
+  });
+  const cdSize = central.reduce((a, b) => a + b.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(end.buffer)], {type: 'application/zip'});
+}
+
+const SENT_KEY="pips-record-last-export";
+function lastSent(){try{return +localStorage.getItem(SENT_KEY)||0;}catch(e){return 0;}}
+function setSent(t){try{localStorage.setItem(SENT_KEY,String(t));}catch(e){}sinceNote();}
+const isNew=(at,base)=>!(at<=base);
+function sinceNote(){const base=lastSent();let n=0;savedAt.forEach(at=>{if(isNew(at,base))n++;});
+ $("exportNew").textContent="Download new or changed clips ("+n+")";
+ $("sinceTxt").textContent=base?"Last full download: "+new Date(base).toLocaleString("en-US")+". Since then, "+n+" clips are new or changed.":"No full download yet, so new or changed clips means all "+n+" clips in this browser.";}
+function download(blob,name){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();}
+async function exportZip(mode){
+ const all=await idbAll();if(!all.length){exStat("No clips saved yet.","bad");return;}
+ const snap=Date.now(),base=lastSent(),pick=mode==="new"?all.filter(r=>isNew(r.at,base)):all;
+ if(!pick.length){$("dlParts").innerHTML="";exStat("Nothing new since the last download.","good");return;}
+ const map={},texts={},voices={};
+ try{const r=await fetch("../audio/manifest.json",{cache:"no-cache"});const L=r.ok?await r.json():null;if(L&&L.clips)Object.keys(L.clips).forEach(id=>{map[id]=1;if(L.texts&&L.texts[id])texts[id]=L.texts[id];if(L.voices&&L.voices[id])voices[id]=L.voices[id];});}catch(e){}
+ all.forEach(r=>{map[r.id]=1;texts[r.id]=r.text;voices[r.id]=r.voice||"";});
+ const complete=clips.every(c=>map[c.id]),missing=clips.filter(c=>!map[c.id]).length;
+ const manifest={version:1,sampleRate:OUT_RATE,complete,count:Object.keys(map).length,updated:new Date().toISOString(),clips:map,texts,voices};
+ const man={name:"audio/manifest.json",data:new TextEncoder().encode(JSON.stringify(manifest,null,1))};
+ const order=new Map(clips.map((c,i)=>[c.id,i]));pick.sort((x,y)=>(order.has(x.id)?order.get(x.id):1e9)-(order.has(y.id)?order.get(y.id):1e9));
+ const files=pick.map(r=>({name:"audio/"+r.id+".wav",data:new Uint8Array(r.wav)}));
+ const PER=100,groups=[files.slice(0,PER-1)];for(let i=PER-1;i<files.length;i+=PER)groups.push(files.slice(i,i+PER));groups[0].unshift(man);
+ const tail=complete?" Every line now has a clip.":" "+missing+" lines still have no clip and will use the device voice.";
+ const what=(mode==="new"?"New or changed clips: ":"All clips: ")+pick.length,tag=mode==="new"?"new":"all",box=$("dlParts");box.innerHTML="";
+ if(groups.length===1){download(makeZip(groups[0]),"pips-audio-"+tag+".zip");setSent(snap);exStat(what+". Downloaded."+tail,"good");return;}
+ const got=new Set();groups.forEach((g,i)=>{const b=document.createElement("button");b.className="btn";b.textContent="Download part "+(i+1)+" ("+g.length+" files"+(i===0?", with manifest":"")+")";
+  b.onclick=()=>{download(makeZip(g),"pips-audio-"+tag+"-"+(i+1)+".zip");b.textContent="Part "+(i+1)+" downloaded";got.add(i);if(got.size===groups.length){setSent(snap);exStat("All "+groups.length+" parts downloaded."+tail,"good");}};box.append(b);});
+ exStat(what+", split into "+groups.length+" parts. Download each part and upload its audio folder to the top of the repository."+tail,"good");
+}
+
+/* Gemini TTS (Interactions API) */
+const AI_STORE="pips-tts";
+const GEM="https://generativelanguage.googleapis.com/v1beta/";
+const DEF_STYLE={
+ pip:"a friendly, curious little robot who is still learning; bright, cheerful, a little playful and warm, never scary or metallic",
+ girl:"a cheerful, kind girl about 8 years old, talking to a classmate and encouraging them",
+ boy:"a cheerful, kind boy about 8 years old, talking to a classmate and encouraging them"};
+const aiCfg={key:"",model:"gemini-3.8-flash-tts",pace:"calm",share:false,voice:{pip:"Puck",girl:"Leda",boy:"Fenrir"},style:{...DEF_STYLE}};
+try{const s=JSON.parse(localStorage.getItem(AI_STORE)||"{}");Object.assign(aiCfg,s,{voice:{...aiCfg.voice,...(s.voice||{})},style:{...aiCfg.style,...(s.style||{})}});}catch(e){}
+function aiKeep(){try{localStorage.setItem(AI_STORE,JSON.stringify(aiCfg));}catch(e){}}
+let aiPending=null,filling=false;
+const PREBUILT=[["Kore","firm"],["Leda","youthful"],["Aoede","breezy"],["Zephyr","bright"],["Puck","upbeat"],["Achernar","soft"],["Vindemiatrix","gentle"],["Sulafat","warm"],["Despina","smooth"],["Erinome","clear"],["Autonoe","bright"],["Callirrhoe","easy-going"],["Laomedeia","upbeat"],["Pulcherrima","forward"],["Achird","friendly"],["Sadachbia","lively"],["Iapetus","clear"],["Charon","informative"],["Orus","firm"],["Fenrir","excitable"],["Umbriel","easy-going"],["Algieba","smooth"],["Schedar","even"],["Gacrux","mature"],["Alnilam","firm"],["Rasalgethi","informative"],["Sadaltager","knowledgeable"],["Zubenelgenubi","casual"],["Enceladus","breathy"],["Algenib","gravelly"]];
+const PACE={slow:"speaking slowly and clearly",calm:"speaking a little slowly, clear and friendly",normal:"natural pace, clear and friendly"};
+const BASE_STYLE="clear American English for young children in elementary school";
+function aiErr(j,code){const m=(j&&j.error&&j.error.message)||"";
+ if(/API key not valid|API_KEY_INVALID|UNAUTHENTICATED/i.test(m)||code===401)return "The API key is not valid. Check that you pasted the whole key from AI Studio.";
+ if(code===429||/RESOURCE_EXHAUSTED|quota/i.test(m))return "Hit a usage limit. Try again in a little while.";
+ if(/not found|NOT_FOUND/i.test(m)||code===404)return "Model or voice not found. Pick another model or voice."+(m?" ("+m+")":"");
+ if(/PERMISSION_DENIED|billing/i.test(m)||code===403)return "This key cannot make speech. ("+m+")";
+ return "Could not make the AI voice."+(m?" ("+m+")":"");}
+function voiceOpt(v,l){const o=document.createElement("option");o.value=v;o.textContent=l;return o;}
+async function aiLoadVoices(){
+ const extra=[];
+ if(aiCfg.key){$("aiKeyState").textContent="Checking the key and loading English voices.";
+  try{const r=await fetch(GEM+"voices?language_code=en-US&page_size=200",{headers:{"x-goog-api-key":aiCfg.key}});const j=await r.json().catch(()=>({}));
+   if(!r.ok)throw Object.assign(new Error(aiErr(j,r.status)),{code:r.status});
+   (j.voices||[]).forEach(v=>{const id=v.id||v.name;if(id&&!PREBUILT.some(p=>p[0]===id))extra.push([id,[v.gender,v.persona].filter(Boolean).join(", "),v.display_name||v.displayName||id]);});
+   $("aiKeyState").textContent="Key saved in this browser."+(extra.length?" Also loaded "+extra.length+" English library voices.":"")+" Use the test buttons to hear each voice.";
+  }catch(e){$("aiKeyState").textContent=(e.code===401||e.code===400||e.code===403)?e.message:"Key saved. Use the test buttons to check it.";}
+ }else $("aiKeyState").textContent="Paste the key from AI Studio and save it.";
+ ["pip","girl","boy"].forEach(r=>{const sel=$("v_"+r);sel.innerHTML="";const g1=document.createElement("optgroup");g1.label="Built-in voices";PREBUILT.forEach(([n,d])=>g1.append(voiceOpt(n,n+" ("+d+")")));sel.append(g1);
+  if(extra.length){const g2=document.createElement("optgroup");g2.label="English voice library";extra.forEach(([id,d,n])=>g2.append(voiceOpt(id,n+(d?" ("+d+")":""))));sel.append(g2);}
+  if(![...sel.options].some(o=>o.value===aiCfg.voice[r]))aiCfg.voice[r]=r==="pip"?"Puck":r==="girl"?"Leda":"Fenrir";sel.value=aiCfg.voice[r];$("s_"+r).value=aiCfg.style[r];});
+ $("aiModel").value=aiCfg.model;$("aiPace").value=aiCfg.pace;$("share").checked=!!aiCfg.share;
+}
+function aiReady(){if(aiCfg.key)return true;$("aiKey").focus();status("First paste your API key in step 1 and save it.","bad");return false;}
+const styleFor=role=>BASE_STYLE+", "+(PACE[aiCfg.pace]||PACE.calm)+". Speaker: "+(aiCfg.style[role]||DEF_STYLE[role]);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const GAP=6500;let lastReq=0;
+const isDaily=j=>/PerDay|per day|daily/i.test(JSON.stringify(j||{}));
+function findAudio(j){if(j&&j.output_audio&&j.output_audio.data)return j.output_audio.data;let f=null;(j&&j.steps||[]).forEach(st=>(st.content||[]).forEach(c=>{if(c&&c.type==="audio"&&c.data)f=c.data;}));return f;}
+const isLegacy=m=>!/^gemini-3\.8/.test(m);
+function pcmToWav(pcm,rate){const h=new DataView(new ArrayBuffer(44)),w=(o,t)=>{for(let i=0;i<4;i++)h.setUint8(o+i,t.charCodeAt(i));};
+ w(0,"RIFF");h.setUint32(4,36+pcm.length,true);w(8,"WAVE");w(12,"fmt ");h.setUint32(16,16,true);h.setUint16(20,1,true);h.setUint16(22,1,true);h.setUint32(24,rate,true);h.setUint32(28,rate*2,true);h.setUint16(32,2,true);h.setUint16(34,16,true);w(36,"data");h.setUint32(40,pcm.length,true);
+ const out=new Uint8Array(44+pcm.length);out.set(new Uint8Array(h.buffer),0);out.set(pcm,44);return out;}
+async function aiSynth(text,role){
+ const voice=aiCfg.voice[role];
+ const body=isLegacy(aiCfg.model)?{model:aiCfg.model,input:"Read this aloud as "+styleFor(role)+". Say only the words inside the quotes: \""+text+"\"",response_format:{type:"audio"},generation_config:{speech_config:[{voice}]}}
+  :{model:aiCfg.model,input:[{type:"user_input",content:[{type:"text",text,annotations:[{type:"speech_metadata",style:styleFor(role)}]}]}],response_format:{type:"audio"},generation_config:{speech_config:[{voice}]}};
+ for(let tryNo=0;;tryNo++){
+  const gap=lastReq+GAP-Date.now();if(gap>0)await wait(gap);lastReq=Date.now();
+  const r=await fetch(GEM+"interactions",{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":aiCfg.key},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));
+  if(r.status===429&&isDaily(j)){const e=new Error("Used up today's limit for "+aiCfg.model.replace("gemini-","")+". Switch models in step 1 to keep going, or wait until about 3 a.m. Indiana time.");e.daily=true;throw e;}
+  if((r.status===429||r.status>=500)&&tryNo<3){status("Waiting a moment, then trying again ("+(tryNo+1)+"/3).");await wait(r.status===429?20000:3000);continue;}
+  const data=r.ok?findAudio(j):null;if(!data)throw new Error(r.ok?"The AI returned no audio. Try again.":aiErr(j,r.status));
+  const bin=atob(data);let u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  if(!(u8[0]===82&&u8[1]===73&&u8[2]===70&&u8[3]===70))u8=pcmToWav(u8,24000);
+  return processBlob(new Blob([u8],{type:"audio/wav"}),{ai:true});
+ }
+}
+const voiceTag=role=>aiCfg.model.replace("gemini-","")+"/"+aiCfg.voice[role];
+/* when sharing, a buddy clip is saved for the other buddy voice too */
+function twinOf(c){if(!aiCfg.share||c.role==="pip")return null;const other=c.role==="girl"?"boy":"girl";return clips.find(x=>x.role===other&&x.text===c.text)||null;}
+async function saveClip(c,wav,voice){const at=Date.now();await idbPut({id:c.id,text:c.text,role:c.role,wav:wav.buffer,at,voice});saved.add(c.id);
+ const t=twinOf(c);if(t){await idbPut({id:t.id,text:t.text,role:t.role,wav:wav.buffer.slice(0),at,voice});saved.add(t.id);}}
+async function aiMake(){const c=view[cur];if(!c||filling||!aiReady())return;$("aiBtn").disabled=true;$("aiAgain").disabled=true;status("Making the AI voice.");
+ try{const wav=await aiSynth(c.text,c.role);if(view[cur]!==c)return;aiPending={id:c.id,c,wav,voice:voiceTag(c.role)};$("aiPend").hidden=false;status("Listen, then save it if you like it.");playBytes(wav);}
+ catch(e){status(e.message,"bad");}finally{$("aiBtn").disabled=false;$("aiAgain").disabled=false;}}
+async function aiCommit(){if(!aiPending)return;const p=aiPending;try{await saveClip(p.c,p.wav,p.voice);}catch(e){status("Could not save. Download before closing the window.","bad");return;}
+ aiPending=null;status("Saved.","good");if($("auto").checked&&view[cur]&&view[cur].id===p.id&&cur<view.length-1){if(filter==="todo"){applyFilter();renderList();show();}else go(1);}else{if(filter==="todo")applyFilter();renderList();show();}}
+async function aiFillAll(){
+ if(filling){filling=false;return;}if(!aiReady())return;
+ const todo=clips.filter(c=>!have(c.id));if(!todo.length){status("Every line already has a voice.","good");return;}
+ const req=aiCfg.share?todo.filter(c=>c.role==="pip"||!(c.role==="boy"&&todo.some(x=>x.role==="girl"&&x.text===c.text))).length:todo.length;
+ if(!confirm("Make AI voices for "+todo.length+" lines ("+req+" AI requests)?\nClips already saved or on the site are left alone.\nYou can stop anytime and continue later."))return;
+ filling=true;$("aiFill").textContent="Stop";let ok=0,fail=0,lastErr="";
+ for(let i=0;i<todo.length&&filling;i++){const c=todo[i];if(have(c.id))continue;status("Filling "+(i+1)+" of "+todo.length+":  "+c.text);
+  try{const wav=await aiSynth(c.text,c.role);await saveClip(c,wav,voiceTag(c.role));ok++;if(ok%10===0)renderList();}
+  catch(e){fail++;lastErr=e.message;if(e.daily)break;if(ok===0&&fail>=3)break;}}
+ const stopped=!filling;filling=false;$("aiFill").textContent="Fill every missing line with AI";applyFilter();renderList();show();
+ status((stopped?"Stopped. ":"")+"Made "+ok+" clips."+(fail?" "+fail+" failed. "+lastErr:""),fail&&!ok?"bad":"good");}
+
+/* wiring */
+$("aiKey").value=aiCfg.key;
+$("aiKeySave").onclick=()=>{aiCfg.key=$("aiKey").value.trim();aiKeep();aiLoadVoices();};
+$("aiKeyDel").onclick=()=>{aiCfg.key="";$("aiKey").value="";aiKeep();aiLoadVoices();};
+$("aiModel").onchange=e=>{aiCfg.model=e.target.value;aiKeep();};
+$("aiPace").onchange=e=>{aiCfg.pace=e.target.value;aiKeep();};
+$("share").onchange=e=>{aiCfg.share=e.target.checked;aiKeep();};
+["pip","girl","boy"].forEach(r=>{$("v_"+r).onchange=e=>{aiCfg.voice[r]=e.target.value;aiKeep();};$("s_"+r).onchange=e=>{aiCfg.style[r]=e.target.value.trim()||DEF_STYLE[r];aiKeep();};});
+document.querySelectorAll("[data-test]").forEach(b=>b.onclick=async()=>{if(!aiReady())return;const r=b.dataset.test;const t={pip:"Hi! I'm Pip. I'm a robot, and I'm still learning. Will you help me?",girl:"Hi! I'm Zuri. Let's start with Mission 1 together.",boy:"Hi! I'm Kai. Nice work! You got it!"}[r];
+ b.disabled=true;$("aiKeyState").textContent="Making a test clip.";try{playBytes(await aiSynth(t,r));$("aiKeyState").textContent="If that sounds right, you are ready.";}catch(e){$("aiKeyState").textContent=e.message;}finally{b.disabled=false;}});
+document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;cur=0;applyFilter();renderList();show();});
+$("aiBtn").onclick=e=>{e.currentTarget.blur();aiMake();};$("aiAgain").onclick=e=>{e.currentTarget.blur();aiMake();};
+$("aiHear").onclick=()=>{if(aiPending)playBytes(aiPending.wav);};$("aiCommit").onclick=()=>aiCommit();
+$("playBtn").onclick=()=>playCurrent();$("prevBtn").onclick=()=>go(-1);$("nextBtn").onclick=()=>go(1);$("delBtn").onclick=()=>deleteCurrent();
+$("aiFill").onclick=aiFillAll;$("exportAll").onclick=()=>exportZip("all");$("exportNew").onclick=()=>exportZip("new");
+$("markSent").onclick=()=>{if(confirm("Mark every clip in this browser as uploaded? After this, new or changed clips means only clips made from now on.")){setSent(Date.now());exStat("Marked.","good");}};
+document.addEventListener("keydown",e=>{if(!clips.length||["INPUT","SELECT","TEXTAREA","SUMMARY"].includes(e.target.tagName)||filling)return;
+ if(e.key==="p"||e.key==="P")playCurrent();else if(e.key==="ArrowRight"){e.preventDefault();go(1);}else if(e.key==="ArrowLeft"){e.preventDefault();go(-1);}
+ else if(e.key==="a"||e.key==="A")aiMake();else if((e.key==="s"||e.key==="S")&&aiPending)aiCommit();});
+aiLoadVoices();loadList();
+
+</script>
+</body></html>

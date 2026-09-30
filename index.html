@@ -342,10 +342,10 @@ const CONFIG={
 };
 /* Buddy names are placeholders. Change them any time. */
 const BUDDIES=[
- {id:"girl_bob_overalls",name:"Mina"},{id:"girl_blonde_braids",name:"Ella"},{id:"boy_blue_tee",name:"Mateo"},
- {id:"boy_orange_shirt",name:"Arjun"},{id:"girl_braids_teal",name:"Aiyana"},{id:"boy_green_hoodie",name:"Jaylen"},
- {id:"girl_wavy_tunic",name:"Sofia"},{id:"boy_curly_yellow_polo",name:"Malik"},{id:"boy_blond_striped",name:"Liam"},
- {id:"boy_red_tee",name:"Kai"},{id:"girl_puffs_yellow_dress",name:"Zuri"}];
+ {id:"girl_bob_overalls",name:"Mina",g:"f"},{id:"girl_blonde_braids",name:"Ella",g:"f"},{id:"boy_blue_tee",name:"Mateo",g:"m"},
+ {id:"boy_orange_shirt",name:"Arjun",g:"m"},{id:"girl_braids_teal",name:"Aiyana",g:"f"},{id:"boy_green_hoodie",name:"Jaylen",g:"m"},
+ {id:"girl_wavy_tunic",name:"Sofia",g:"f"},{id:"boy_curly_yellow_polo",name:"Malik",g:"m"},{id:"boy_blond_striped",name:"Liam",g:"m"},
+ {id:"boy_red_tee",name:"Kai",g:"m"},{id:"girl_puffs_yellow_dress",name:"Zuri",g:"f"}];
 
 /* Full-body pose used for each buddy on celebration screens */
 const BUDDY_POSE={girl_bob_overalls:"p_bug",girl_blonde_braids:"p_butterfly",boy_blue_tee:"p_blue_jump",boy_orange_shirt:"p_bee",
@@ -533,6 +533,39 @@ const GUIDES={
  u7:{idea:"Societal Impact",min:"12 to 15",goal:"Reason about fairness, consent, and who should decide how AI is used.",talk:["Did anyone change their mind after hearing both sides?","What is one class rule for using AI fairly?"],off:"Four corners debate: agree, disagree, it depends, not sure."}
 };
 
+/* ===== Voice: prerecorded AI clips first, device voice as backup =====
+   audio/manifest.json lists the recorded clips. A clip file is named by who speaks and a hash of the words,
+   for example pip-1a2b3c4d.wav. Anything not recorded yet is read by the device voice.
+   The recording studio (record/) builds its list from listClips() below. */
+const AUDIO_BASE="audio/";
+let CLIPS=null;
+function clipId(role,text){let h=0x811c9dc5;for(const ch of text){h^=ch.codePointAt(0);h=Math.imul(h,0x01000193)>>>0;}return role+"-"+h.toString(16).padStart(8,"0");}
+try{fetch(AUDIO_BASE+"manifest.json",{cache:"no-cache"}).then(r=>r.ok?r.json():null).then(j=>{if(j&&j.clips)CLIPS=j.clips;}).catch(()=>{});}catch(e){}
+function voiceRole(r){if(r==="pip"||r==="girl"||r==="boy")return r;const b=BUDDIES.find(x=>x.id===S.buddy);return b&&b.g==="m"?"boy":"girl";}
+function normParts(x,role){const arr=Array.isArray(x)?x:[x];return arr.filter(Boolean).map(p=>Array.isArray(p)?{t:p[0],r:voiceRole(p[1]||role)}:{t:p,r:voiceRole(role)});}
+const clipCache={};
+function clipAudio(p){if(!CLIPS)return null;const id=clipId(p.r,p.t);if(!CLIPS[id])return null;if(!clipCache[id]){const a=new Audio(AUDIO_BASE+id+".wav");a.preload="auto";clipCache[id]=a;}return clipCache[id];}
+let voice=null,seqTok=0,playing=null;
+function pickVoice(){try{const v=speechSynthesis.getVoices();voice=v.find(x=>/en-US/i.test(x.lang)&&/Samantha|Google US|Aria|Jenny|Natural/i.test(x.name))||v.find(x=>/^en/i.test(x.lang))||null;}catch(e){}}
+if("speechSynthesis" in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
+function ttsSay(p,done){
+ if(!("speechSynthesis" in window)){done();return;}
+ const u=new SpeechSynthesisUtterance(p.t);if(voice)u.voice=voice;u.lang="en-US";
+ u.rate=S.track==="sprout"?.9:.97;u.pitch=p.r==="pip"?1.35:p.r==="girl"?1.15:.95;
+ let fired=false;const fin=()=>{if(!fired){fired=true;done();}};u.onend=fin;u.onerror=fin;
+ setTimeout(fin,2500+p.t.length*90);speechSynthesis.speak(u);
+}
+function stopSpeak(){seqTok++;if(playing){try{playing.onended=null;playing.pause();}catch(e){}playing=null;}try{if("speechSynthesis" in window)speechSynthesis.cancel();}catch(e){}}
+function speak(x,role="buddy"){
+ const parts=normParts(x,role);if(!parts.length)return;stopSpeak();const tok=seqTok;
+ const step=i=>{if(tok!==seqTok||i>=parts.length)return;const p=parts[i],next=()=>step(i+1),a=clipAudio(p);
+  if(a){try{a.currentTime=0;a.onended=next;playing=a;const pr=a.play();if(pr&&pr.catch)pr.catch(()=>ttsSay(p,next));return;}catch(e){}}
+  ttsSay(p,next);};
+ step(0);
+}
+const readBtn=(x,role="buddy")=>`<button class="read" data-parts="${esc(JSON.stringify(normParts(x,role).map(p=>[p.t,p.r])))}" aria-label="Read aloud">${SPEAK_ICON}</button>`;
+document.addEventListener("click",e=>{const b=e.target.closest("[data-parts]");if(b){e.stopPropagation();try{speak(JSON.parse(b.dataset.parts));}catch(err){}}},true);
+
 /* ===== State ===== */
 const KEY="pipsAiLab.v1";
 const Q=new URLSearchParams(location.search);
@@ -552,14 +585,6 @@ const readOn=()=>S.read===null?(S.track==="sprout"):S.read;
 function toast(t){const d=document.createElement("div");d.className="toast";d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2200);}
 function setTrackColor(t){document.documentElement.style.setProperty("--track",t?TRACKS[t].hex:"#6C5CE7");}
 
-/* ===== Read aloud ===== */
-let voice=null;
-function pickVoice(){const v=speechSynthesis.getVoices();voice=v.find(x=>/en-US/i.test(x.lang)&&/Samantha|Google US|Aria|Jenny|Natural/i.test(x.name))||v.find(x=>/^en/i.test(x.lang))||null;}
-if("speechSynthesis" in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
-function speak(t){if(!("speechSynthesis" in window))return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);if(voice)u.voice=voice;u.lang="en-US";u.rate=S.track==="sprout"?.9:.97;u.pitch=1.05;speechSynthesis.speak(u);}
-function stopSpeak(){if("speechSynthesis" in window)speechSynthesis.cancel();}
-const readBtn=t=>`<button class="read" data-say="${esc(t)}" aria-label="Read aloud">${SPEAK_ICON}</button>`;
-document.addEventListener("click",e=>{const b=e.target.closest("[data-say]");if(b){e.stopPropagation();speak(b.dataset.say);}},true);
 
 /* ===== Header / footer ===== */
 function header(){
@@ -618,7 +643,7 @@ function home(){
 function onboard(next){
  let pick=S.buddy;
  const m=document.createElement("div");m.className="modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
- m.innerHTML=`<div class="sheet"><div class="q"><h2>Hi explorer! Pick a buddy.</h2>${readBtn("Hi explorer! Pick a buddy to explore with you. Then type a nickname.")}</div>
+ m.innerHTML=`<div class="sheet"><div class="q"><h2>Hi explorer! Pick a buddy.</h2>${readBtn("Hi explorer! Pick a buddy to explore with you. Then type a nickname.","pip")}</div>
   <div class="buddies">${BUDDIES.map(b=>`<button class="buddy" data-b="${b.id}" aria-pressed="${b.id===pick}">${img("bust_"+b.id,"")}${b.name}</button>`).join("")}</div>
   <label class="lbl" for="nick">What should Pip call you?</label>
   <input type="text" id="nick" maxlength="14" autocomplete="off" value="${esc(S.nick)}" placeholder="A nickname">
@@ -626,7 +651,7 @@ function onboard(next){
   <div class="actions"><button class="btn" id="go" disabled>Let's go</button></div></div>`;
  document.body.appendChild(m);
  const chk=()=>{$("#go",m).disabled=!(pick&&$("#nick",m).value.trim());};
- $$(".buddy",m).forEach(b=>b.onclick=()=>{pick=b.dataset.b;$$(".buddy",m).forEach(x=>x.setAttribute("aria-pressed",x===b));chk();if(readOn())speak("Hi! I'm "+BUDDIES.find(x=>x.id===pick).name+".");});
+ $$(".buddy",m).forEach(b=>b.onclick=()=>{pick=b.dataset.b;$$(".buddy",m).forEach(x=>x.setAttribute("aria-pressed",x===b));chk();{const pb=BUDDIES.find(x=>x.id===pick);if(readOn())speak("Hi! I'm "+pb.name+".",pb.g==="m"?"boy":"girl");}});
  $("#nick",m).oninput=chk;chk();
  $("#go",m).onclick=()=>{S.buddy=pick;S.nick=$("#nick",m).value.trim().slice(0,14);save();m.remove();header();next&&next();};
 }
@@ -639,7 +664,10 @@ function mapScreen(){
  app.innerHTML=`<section class="wrap">
   <div class="maphead"><div><h1>${T.name}</h1><p>${n} of ${T.missions.length} stamps collected. Pick any mission. The numbers show a good order.</p></div>
    <button class="pill" style="margin-left:auto" id="switch">Switch to ${S.track==="sprout"?TRACKS.trail.name:TRACKS.sprout.name}</button></div>
-  ${S.buddy?(()=>{const say=n===T.missions.length?`We did it, ${S.nick}! Every stamp is ours. Let's get your certificate!`:n===0?`Hi ${S.nick}! I'm ${buddyObj().name}. Let's start with Mission 1 together.`:`Welcome back, ${S.nick}! We have ${T.missions.length-n} more ${T.missions.length-n===1?"mission":"missions"} to go. Which one should we try?`;return `<div class="greet">${bface("gface")}<div class="bubble"><p>${esc(say)}</p>${readBtn(say)}</div></div>`;})():""}
+  ${S.buddy?(()=>{const left=T.missions.length-n,bn=buddyObj().name;
+   const show=left===0?`We did it, ${S.nick}! Every stamp is ours. Let's get your certificate!`:n===0?`Hi ${S.nick}! I'm ${bn}. Let's start with Mission 1 together.`:`Welcome back, ${S.nick}! We have ${left} more ${left===1?"mission":"missions"} to go. Which one should we try?`;
+   const say=left===0?["We did it! Every stamp is ours. Let's get your certificate!"]:n===0?[`Hi! I'm ${bn}.`,"Let's start with Mission 1 together."]:[`Welcome back! We have ${left} more ${left===1?"mission":"missions"} to go. Which one should we try?`];
+   return `<div class="greet">${bface("gface")}<div class="bubble"><p>${esc(show)}</p>${readBtn(say)}</div></div>`;})():""}
   <div class="missionlist">${T.missions.map((id,i)=>{const M=MISSIONS[id];return `<button class="node ${S.done[id]?"done":""}" data-m="${id}">
    <div class="pic">${img(M.pose,"")}${S.done[id]?`<span class="stamp" title="Stamp earned">${STAMP_ICON}</span>`:""}</div>
    <div><span class="num">Mission ${i+1}</span><h3>${M.title}</h3><p>${M.blurb}</p></div></button>`}).join("")}</div>
@@ -669,22 +697,27 @@ function step(){
  ({talk:rTalk,sort:rSort,quiz:rQuiz,teach:rTeach,check:rCheck,lab:rLab,pixels:rPixels,nextword:rNext,fact:rFact,prompt:rPrompt,dilemma:rDilemma,end:rEnd})[st.t](stage,st,done);
 }
 function speaker(who,mood){if(who==="pip")return `<div class="who"><div class="face">${pipSVG(mood||"happy","")}</div><b>Pip</b></div>`;const b=buddyObj();return `<div class="who"><div class="face">${img("bust_"+b.id,b.name)}</div><b>${b.name}</b></div>`;}
-function rTalk(el,st){el.innerHTML=`<div class="talk">${speaker(st.who,st.mood)}<div class="bubble"><p>${esc(st.text)}</p>${readBtn(st.text)}</div></div>`;if(readOn())speak(st.text);}
-function fbox(good,text,mood){
- const who=mood||!S.buddy?pipSVG(mood||(good?"happy":"think"),"pip"):bface();
- const b=buddyObj(),lead=!mood&&S.buddy?`<b class="fbname">${b.name}:</b> `:"";
- const t=!mood&&S.buddy&&good&&!/^(Yes|Right|Great|Good|Exactly|Caught|You|Nice|Case|Perfect)/.test(text)?CHEERS[Math.floor(Math.random()*CHEERS.length)]+" "+text:text;
- return `<div class="fb ${good?"good":"try"}" role="status">${who}<div>${lead}${esc(t)}</div>${readBtn(t)}</div>`;}
+function rTalk(el,st){el.innerHTML=`<div class="talk">${speaker(st.who,st.mood)}<div class="bubble"><p>${esc(st.text)}</p>${readBtn(st.text,st.who==="pip"?"pip":"buddy")}</div></div>`;if(readOn())speak(st.text,st.who==="pip"?"pip":"buddy");}
+const LAB_MISS="Pip missed some fruits. Did Pip's training set have anything like them? Change the training set and test again.";
+const CHEER_SKIP=/^(Yes|Right|Great|Good|Exactly|Caught|You|Nice|Case|Perfect)/;
+function fbox(good,text,mood,sayText){
+ const pipTalks=!!mood||!S.buddy,role=pipTalks?"pip":"buddy";
+ const who=pipTalks?pipSVG(mood||(good?"happy":"think"),"pip"):bface();
+ const lead=pipTalks?"":`<b class="fbname">${buddyObj().name}:</b> `;
+ const cheer=!pipTalks&&good&&!CHEER_SKIP.test(text)?CHEERS[Math.floor(Math.random()*CHEERS.length)]:"";
+ const say=[].concat(cheer?[cheer]:[],sayText||text);
+ if(readOn())setTimeout(()=>speak(say,role),0);
+ return `<div class="fb ${good?"good":"try"}" role="status">${who}<div>${lead}${esc(cheer?cheer+" "+text:text)}</div>${readBtn(say,role)}</div>`;}
 
 function rQuiz(el,st,done){
  let tried=false;const order=st.opts.map((o,i)=>i).sort(()=>Math.random()-.5);
- el.innerHTML=`<div class="q"><h2>${esc(st.q)}</h2>${readBtn(st.q+" "+st.opts.join(". "))}</div>
+ el.innerHTML=`<div class="q"><h2>${esc(st.q)}</h2>${readBtn([st.q,...st.opts])}</div>
   <div class="opts">${order.map(i=>`<button class="opt" data-i="${i}">${esc(st.opts[i])}</button>`).join("")}</div><div id="fb"></div>`;
  if(readOn())speak(st.q);
  $$(".opt",el).forEach(b=>b.onclick=()=>{
   const i=+b.dataset.i,ok=i===st.a;if(!tried){first(ok);tried=true;}
-  if(ok){b.classList.add("right");$$(".opt",el).forEach(x=>x.disabled=true);$("#fb",el).innerHTML=fbox(true,st.why);if(readOn())speak(st.why);done();}
-  else{b.classList.remove("wrong");void b.offsetWidth;b.classList.add("wrong");const t="Not quite. Try another answer!";$("#fb",el).innerHTML=fbox(false,t);if(readOn())speak(t);}
+  if(ok){b.classList.add("right");$$(".opt",el).forEach(x=>x.disabled=true);$("#fb",el).innerHTML=fbox(true,st.why);done();}
+  else{b.classList.remove("wrong");void b.offsetWidth;b.classList.add("wrong");const t="Not quite. Try another answer!";$("#fb",el).innerHTML=fbox(false,t);}
  });
 }
 
@@ -699,11 +732,11 @@ function rSort(el,st,done){
  $$(".cards .card",el).forEach(c=>c.onclick=()=>{setSel(c);if(readOn())speak(st.items[c.dataset.i].text);});
  $$(".bin",el).forEach(bin=>bin.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();bin.click();}});
  $$(".bin",el).forEach(bin=>bin.onclick=()=>{
-  if(!sel){const t="First tap a card.";$("#fb",el).innerHTML=fbox(false,t);if(readOn())speak(t);return;}
+  if(!sel){$("#fb",el).innerHTML=fbox(false,"First tap a card.");return;}
   const it=st.items[sel.dataset.i],k=+bin.dataset.bin,ok=it.bin===k;
   if(!tried[it.text]){first(ok);tried[it.text]=1;}
-  if(ok){const placed=document.createElement("div");placed.className="card";placed.innerHTML=sel.innerHTML;bin.appendChild(placed);sel.remove();$("#fb",el).innerHTML=fbox(true,it.why);if(readOn())speak(it.why);setSel(null);left--;if(!left){done();}}
-  else{sel.classList.remove("wrong");void sel.offsetWidth;sel.animate([{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"none"}],{duration:300});const tt="Hmm, try the other box.";$("#fb",el).innerHTML=fbox(false,tt);if(readOn())speak(tt);}
+  if(ok){const placed=document.createElement("div");placed.className="card";placed.innerHTML=sel.innerHTML;bin.appendChild(placed);sel.remove();$("#fb",el).innerHTML=fbox(true,it.why);setSel(null);left--;if(!left){done();}}
+  else{sel.classList.remove("wrong");void sel.offsetWidth;sel.animate([{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"none"}],{duration:300});$("#fb",el).innerHTML=fbox(false,"Hmm, try the other box.");}
  });
 }
 
@@ -721,7 +754,7 @@ function rTeach(el,st,done){
    el.innerHTML=`<div class="q"><h2>${say}</h2>${readBtn(say)}</div><div class="teach"><div class="big">${fruitSVG(f.kind,f.color)}</div>
     <div><div class="choices"><button class="btn" data-l="apple">Apple</button><button class="btn" data-l="banana">Banana</button></div>${mem}</div></div>`;
    if(readOn())speak(say);
-   $$("[data-l]",el).forEach(b=>b.onclick=()=>{train.push({id,label:b.dataset.l});if(readOn())speak(b.dataset.l);
+   $$("[data-l]",el).forEach(b=>b.onclick=()=>{train.push({id,label:b.dataset.l});if(readOn())speak(cap(b.dataset.l));
     if(phase==="teach"){qi++;if(qi>=teachQ.length){phase="test";}}else{phase="retest";}setTimeout(draw,350);});
   }else if(phase==="test"||phase==="retest"){
    const list=phase==="test"?tests:["ga1"];
@@ -737,7 +770,7 @@ function rTeach(el,st,done){
      if(phase==="test"&&wrongGreen){t="Oops! Pip never saw a green apple, so Pip guessed banana. Let's teach Pip!";$("#fb",el).innerHTML=fbox(false,t,"oops")+`<div class="actions"><button class="btn" id="tg">Teach Pip</button></div>`;$("#tg",el).onclick=()=>{phase="teachGreen";draw();};}
      else if(anyWrong){t="Pip learned exactly what you taught, even the mix-ups! Good data matters.";$("#fb",el).innerHTML=fbox(false,t,"oops");done();}
      else{t=phase==="retest"?"Yay! Now Pip knows green apples too. More kinds of examples made Pip smarter.":"Pip got them all! You are a great teacher.";$("#fb",el).innerHTML=fbox(true,t,"happy");done();}
-     if(readOn())speak(t);},500*(list.length+1));};
+     },500*(list.length+1));};
   }
  }
  draw();
@@ -750,15 +783,15 @@ function rCheck(el,st,done){
   {p:"banana",c:"yellow",says:"Banana",ok:true,why:"Yes! Pip got that one right."}];
  let k=0;
  function draw(){
-  if(k>=items.length){const t="You checked every answer. Great job!";el.innerHTML=fbox(true,t);if(readOn())speak(t);done();return;}
+  if(k>=items.length){el.innerHTML=fbox(true,"You checked every answer. Great job!");done();return;}
   const it=items[k],say=`Pip says: ${it.says}. Is Pip right?`;
   el.innerHTML=`<div class="q"><h2>Picture ${k+1} of ${items.length}</h2></div><div class="teach"><div class="big">${fruitSVG(it.p,it.c)}</div>
    <div><div class="bubble" style="margin:0 0 16px"><p>Pip says: <b>${it.says}</b></p>${readBtn(say)}</div>
    <div class="choices"><button class="btn" data-a="1">Right</button><button class="btn sun" data-a="0">Oops</button></div><div id="fb"></div></div></div>`;
   if(readOn())speak(say);let tried=false;
   $$("[data-a]",el).forEach(b=>b.onclick=()=>{const ok=(b.dataset.a==="1")===it.ok;if(!tried){first(ok);tried=true;}
-   if(ok){$("#fb",el).innerHTML=fbox(true,it.why)+`<div class="actions"><button class="btn" id="nx">Next picture</button></div>`;if(readOn())speak(it.why);$("#nx",el).onclick=()=>{k++;draw();};$$("[data-a]",el).forEach(x=>x.disabled=true);}
-   else{const t="Look again carefully.";$("#fb",el).innerHTML=fbox(false,t);if(readOn())speak(t);}});
+   if(ok){$("#fb",el).innerHTML=fbox(true,it.why)+`<div class="actions"><button class="btn" id="nx">Next picture</button></div>`;$("#nx",el).onclick=()=>{k++;draw();};$$("[data-a]",el).forEach(x=>x.disabled=true);}
+   else{$("#fb",el).innerHTML=fbox(false,"Look again carefully.");}});
  }
  draw();
 }
@@ -779,7 +812,7 @@ function rLab(el,st,done){
   let t;
   if(right<test.length){sawMistake=true;t=`Pip missed the ${miss.map(m=>m.name).join(" and the ")}. Did Pip's training set have anything like ${miss.length>1?"them":"it"}? Change the training set and test again.`;}
   else{sawPerfect=true;t=sawMistake?"Perfect score! Adding more kinds of fruit fixed Pip's mistakes.":"Perfect score! Now try taking out the green and yellow apples, then test again. What happens?";}
-  $("#fb",el).innerHTML=fbox(right===test.length,t,right===test.length?"happy":"oops");if(readOn())speak(t);
+  $("#fb",el).innerHTML=fbox(right===test.length,t,right===test.length?"happy":"oops",right<test.length?LAB_MISS:null);
   if(!P.labScored){first(right===test.length);P.labScored=1;}
   if(sawMistake&&sawPerfect)done();
  };
@@ -816,7 +849,7 @@ function rPixels(el,st,done){
 }
 
 function rNext(el,st,done){
- let stories=[...STORIES_A],fed=false,words=["the"],long=false;
+ let stories=[...STORIES_A],fed=false,words=["the"],long=false,toldLong=false;
  const model=()=>{const m={};stories.forEach(s=>{const w=s.split(" ");for(let i=0;i<w.length-1;i++){(m[w[i]]=m[w[i]]||{})[w[i+1]]=(m[w[i]][w[i+1]]||0)+1;}});return m;};
  function draw(){
   const m=model(),last=words[words.length-1],nx=m[last]?Object.entries(m[last]).sort((a,b)=>b[1]-a[1]):[];const tot=nx.reduce((a,b)=>a+b[1],0);
@@ -830,9 +863,9 @@ function rNext(el,st,done){
   $$("[data-w]",el).forEach(b=>b.onclick=()=>{words.push(b.dataset.w);draw();});
   const a=$("#auto",el);if(a)a.onclick=()=>{words.push(nx[0][0]);draw();};
   $("#again",el).onclick=()=>{words=["the"];draw();};
-  const f=$("#feed",el);if(f)f.onclick=()=>{stories=stories.concat(STORIES_B);fed=true;words=["the"];draw();const t="Pip read more stories about dogs. Look at the guesses after the word the now!";$("#fb",el).innerHTML=fbox(true,t,"wow");if(readOn())speak(t);};
+  const f=$("#feed",el);if(f)f.onclick=()=>{stories=stories.concat(STORIES_B);fed=true;words=["the"];draw();$("#fb",el).innerHTML=fbox(true,"Pip read more stories about dogs. Look at the guesses after the word the now!","wow");};
   if(long&&fed)done();
-  else if(long&&!fed&&!$("#fb",el).innerHTML){$("#fb",el).innerHTML=fbox(true,"Great sentence! Now give Pip the dog stories and see if the guesses change.","think");}
+  else if(long&&!fed&&!toldLong){toldLong=true;$("#fb",el).innerHTML=fbox(true,"Great sentence! Now give Pip the dog stories and see if the guesses change.","think");}
  }
  draw();
 }
@@ -840,14 +873,14 @@ function rNext(el,st,done){
 function rFact(el,st,done){
  let k=0;
  function draw(){
-  if(k>=FACTS.length){const t="Case closed! You caught every wrong fact.";el.innerHTML=fbox(true,t,"happy");if(readOn())speak(t);done();return;}
+  if(k>=FACTS.length){el.innerHTML=fbox(true,"Case closed! You caught every wrong fact.","happy");done();return;}
   const F=FACTS[k];const say="One of these sentences is wrong. Tap it.";
   el.innerHTML=`<div class="q"><h2>Case ${k+1} of ${FACTS.length}: ${say}</h2>${readBtn(say)}</div>
    <div class="chatq">${esc(F.q)}</div><div style="display:flex;gap:12px;align-items:flex-start">${pipSVG("happy","pip").replace('class="pip"','class="pip" style="width:56px;flex:none"')}
    <div class="chata">${F.s.map((s,i)=>`<button class="sent" data-s="${i}">${esc(s)}</button>`).join("")}</div></div><div id="fb"></div>`;
   let tried=false;
   $$(".sent",el).forEach(b=>b.onclick=()=>{const ok=+b.dataset.s===F.bad;if(!tried){first(ok);tried=true;}
-   if(ok){b.classList.add("caught");$$(".sent",el).forEach(x=>x.disabled=true);$("#fb",el).innerHTML=fbox(true,"Caught it! "+F.fix)+`<div class="actions"><button class="btn" id="nc">Next case</button></div>`;if(readOn())speak("Caught it! "+F.fix);$("#nc",el).onclick=()=>{k++;draw();};}
+   if(ok){b.classList.add("caught");$$(".sent",el).forEach(x=>x.disabled=true);$("#fb",el).innerHTML=fbox(true,"Caught it! "+F.fix,null,["Caught it!",F.fix])+`<div class="actions"><button class="btn" id="nc">Next case</button></div>`;$("#nc",el).onclick=()=>{k++;draw();};}
    else{b.classList.add("ok");b.disabled=true;$("#fb",el).innerHTML=fbox(false,"That one is true. Keep looking!");}});
  }
  draw();
@@ -875,13 +908,13 @@ function rPrompt(el,st,done){
 function rDilemma(el,st,done){
  let k=0;
  function draw(){
-  if(k>=DILEMMAS.length){const t="Great thinking! Talk about these stories with your class too.";el.innerHTML=fbox(true,t);if(readOn())speak(t);done();return;}
+  if(k>=DILEMMAS.length){el.innerHTML=fbox(true,"Great thinking! Talk about these stories with your class too.");done();return;}
   const D=DILEMMAS[k];
-  el.innerHTML=`<div class="q"><h2>Story ${k+1}: ${esc(D.text)}</h2>${readBtn(D.text+" Is this fair?")}</div><p style="font-size:20px;margin:0">Is this fair?</p>
+  el.innerHTML=`<div class="q"><h2>Story ${k+1}: ${esc(D.text)}</h2>${readBtn([D.text,"Is this fair?"])}</div><p style="font-size:20px;margin:0">Is this fair?</p>
    <div class="votes">${["Fair","Not fair","It depends"].map(v=>`<button class="chip" data-v="${v}">${v}</button>`).join("")}</div><div id="more"></div>`;
   $$("[data-v]",el).forEach(b=>b.onclick=()=>{$$("[data-v]",el).forEach(x=>x.setAttribute("aria-pressed",x===b));S.votes[k]=b.dataset.v;save();
    $("#more",el).innerHTML=`<div class="sides"><div><b>Some people say</b>${esc(D.a)}</div><div><b>Other people say</b>${esc(D.b)}</div></div>
-    <div class="fb try">${pipSVG("think","pip")}<div><b>Think about it:</b> ${esc(D.ask)}</div>${readBtn(D.ask)}</div>
+    <div class="fb try">${pipSVG("think","pip")}<div><b>Think about it:</b> ${esc(D.ask)}</div>${readBtn(D.ask,"pip")}</div>
     <div class="actions"><button class="btn" id="nd">${k<DILEMMAS.length-1?"Next story":"Finish"}</button></div>`;
    $("#nd",el).onclick=()=>{k++;draw();};});
  }
@@ -935,7 +968,7 @@ function certificate(){
   <div style="display:flex;justify-content:center;align-items:flex-end;gap:14px"><img src="${ASSETS[BUDDY_POSE[S.buddy]||T.pose]}" alt="" style="height:180px"><img src="${ASSETS.robot_wave}" alt="" style="height:160px"></div></div>
   <div class="actions noprint"><button class="btn ghost" data-go="map">Back to missions</button><button class="btn" id="pr">Print certificate</button></div></section>`;
  $("#pr").onclick=()=>print();
- if(readOn())speak("Congratulations, "+(S.nick||"explorer")+"! You are an AI Explorer!");
+ if(readOn())speak("Congratulations! You are an AI Explorer!");
 }
 
 /* ===== Teacher Room ===== */
@@ -997,6 +1030,48 @@ function tpanel(k){
 }
 
 /* ===== Boot ===== */
-footer();
-if(CLASS.track&&S.nick&&S.buddy)mapScreen();else home();
+if(Q.get("clips")!=="1"){footer();
+if(CLASS.track&&S.nick&&S.buddy)mapScreen();else home();}
+
+/* ===== Recording list =====
+   The recording studio (record/) reads this list. Every line the site says out loud is here.
+   Lines said by the buddy are listed twice, once for the girl voice and once for the boy voice. */
+function listClips(){
+ const out=[],seen=new Set();
+ const add=(text,role,group,label)=>{if(!text)return;const roles=role==="buddy"?["girl","boy"]:[role];
+  roles.forEach(r=>{const id=clipId(r,text);if(seen.has(id))return;seen.add(id);out.push({id,text,role:r,group,label:label||""});});};
+ const G="Everywhere";
+ add("Hi explorer! Pick a buddy to explore with you. Then type a nickname.","pip",G,"Pick a buddy");
+ BUDDIES.forEach(b=>add("Hi! I'm "+b.name+".",b.g==="m"?"boy":"girl",G,"Buddy says hi"));
+ add("Let's start with Mission 1 together.","buddy",G,"Map greeting");
+ add("We did it! Every stamp is ours. Let's get your certificate!","buddy",G,"Map greeting");
+ for(let k=1;k<=6;k++)add(`Welcome back! We have ${k} more ${k===1?"mission":"missions"} to go. Which one should we try?`,"buddy",G,"Map greeting");
+ add("Congratulations! You are an AI Explorer!","buddy",G,"Certificate");
+ CHEERS.forEach(c=>add(c,"buddy",G,"Cheer"));
+ ["Not quite. Try another answer!","First tap a card.","Hmm, try the other box.","Look again carefully."].forEach(t=>add(t,"buddy",G,"Hint"));
+ ["sprout","trail"].forEach(tr=>TRACKS[tr].missions.forEach((mid,i)=>{
+  const M=MISSIONS[mid],g=TRACKS[tr].name+", Mission "+(i+1)+": "+M.title;
+  M.steps.forEach(st=>{
+   if(st.t==="talk")add(st.text,st.who==="pip"?"pip":"buddy",g,st.who==="pip"?"Pip talks":"Buddy talks");
+   if(st.t==="quiz"){add(st.q,"buddy",g,"Question");st.opts.forEach(o=>add(o,"buddy",g,"Answer choice"));add(st.why,"buddy",g,"Feedback");}
+   if(st.t==="sort"){add(st.prompt,"buddy",g,"Directions");st.items.forEach(it=>{add(it.text,"buddy",g,"Card");add(it.why,"buddy",g,"Feedback");});}
+   if(st.t==="teach"){["Is this an apple or a banana? Tap to teach Pip.","This is a green apple. Tap Apple to teach Pip!","Apple","Banana","Now Pip will guess some new fruits. Tap Guess!","Let's test Pip on the green apple again."].forEach(t=>add(t,"buddy",g,"Directions"));
+    ["Oops! Pip never saw a green apple, so Pip guessed banana. Let's teach Pip!","Pip learned exactly what you taught, even the mix-ups! Good data matters.","Yay! Now Pip knows green apples too. More kinds of examples made Pip smarter.","Pip got them all! You are a great teacher."].forEach(t=>add(t,"pip",g,"Pip reacts"));}
+   if(st.t==="check"){["Sun","Apple","Banana"].forEach(w=>add(`Pip says: ${w}. Is Pip right?`,"buddy",g,"Directions"));
+    ["Yes! That is the sun.","Good catch! It is round and red like an apple, but it is a ball.","Good catch! It is curvy and yellow like a banana, but it is the moon.","Yes! Pip got that one right.","You checked every answer. Great job!"].forEach(t=>add(t,"buddy",g,"Feedback"));}
+   if(st.t==="lab"){add("Tap fruits to add them to Pip's training set. Then test Pip on six new fruits.","buddy",g,"Directions");add("Pip needs at least one example to learn from.","buddy",g,"Hint");
+    [LAB_MISS,"Perfect score! Adding more kinds of fruit fixed Pip's mistakes.","Perfect score! Now try taking out the green and yellow apples, then test again. What happens?"].forEach(t=>add(t,"pip",g,"Pip reacts"));}
+   if(st.t==="pixels"){["Draw on the grid by tapping squares. Watch how the picture turns into numbers.","Nice drawing! Now be the computer. These numbers make a mystery picture. What is it?"].forEach(t=>add(t,"buddy",g,"Directions"));
+    ["Yes! You read the numbers like a computer. The heart is now on your grid.","Look where the 1s are. What shape do they make?"].forEach(t=>add(t,"buddy",g,"Feedback"));}
+   if(st.t==="nextword"){add("Build a sentence. Tap one of the words Pip guesses, or let Pip pick the most likely word.","buddy",g,"Directions");
+    ["Pip read more stories about dogs. Look at the guesses after the word the now!","Great sentence! Now give Pip the dog stories and see if the guesses change."].forEach(t=>add(t,"pip",g,"Pip reacts"));}
+   if(st.t==="fact"){add("One of these sentences is wrong. Tap it.","buddy",g,"Directions");add("Caught it!","buddy",g,"Feedback");FACTS.forEach(F=>add(F.fix,"buddy",g,"Feedback"));
+    add("That one is true. Keep looking!","buddy",g,"Hint");add("Case closed! You caught every wrong fact.","pip",g,"Pip reacts");}
+   if(st.t==="prompt"){add("Add blocks to make the prompt clearer. Watch how the answer changes.","buddy",g,"Directions");add("You found it! Saying who it is for, what you want to know, and how to show it makes a much better prompt.","buddy",g,"Feedback");}
+   if(st.t==="dilemma"){DILEMMAS.forEach(D=>{add(D.text,"buddy",g,"Story");add(D.ask,"pip",g,"Think about it");});add("Is this fair?","buddy",g,"Question");add("Great thinking! Talk about these stories with your class too.","buddy",g,"Feedback");}
+  });
+  add(`Mission complete! You earned the ${M.title} stamp.`,"buddy",g,"Mission complete");
+ }));
+ return out;
+}
 </script></body></html>
