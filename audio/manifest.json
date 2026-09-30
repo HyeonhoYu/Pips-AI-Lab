@@ -1,0 +1,49 @@
+{
+ "version": 1,
+ "sampleRate": 22050,
+ "complete": false,
+ "count": 12,
+ "updated": "2026-09-30T16:34:22.915Z",
+ "clips": {
+  "boy-5d0be3ee": 1,
+  "boy-91a3d016": 1,
+  "boy-9fe92f65": 1,
+  "boy-b9f821e7": 1,
+  "boy-ccf32564": 1,
+  "boy-f23d379d": 1,
+  "girl-188f5850": 1,
+  "girl-4238ec15": 1,
+  "girl-8555bd63": 1,
+  "girl-ac118e42": 1,
+  "girl-cc32825a": 1,
+  "pip-5b2d2513": 1
+ },
+ "texts": {
+  "boy-5d0be3ee": "Hi! I'm Malik.",
+  "boy-91a3d016": "Hi! I'm Mateo.",
+  "boy-9fe92f65": "Hi! I'm Jaylen.",
+  "boy-b9f821e7": "Hi! I'm Liam.",
+  "boy-ccf32564": "Hi! I'm Arjun.",
+  "boy-f23d379d": "Hi! I'm Kai.",
+  "girl-188f5850": "Hi! I'm Zuri.",
+  "girl-4238ec15": "Hi! I'm Mina.",
+  "girl-8555bd63": "Hi! I'm Aiyana.",
+  "girl-ac118e42": "Hi! I'm Ella.",
+  "girl-cc32825a": "Hi! I'm Sofia.",
+  "pip-5b2d2513": "Hi explorer! Pick a buddy to explore with you. Then type a nickname."
+ },
+ "voices": {
+  "boy-5d0be3ee": "3.1-flash-tts-preview/Fenrir",
+  "boy-91a3d016": "3.1-flash-tts-preview/Fenrir",
+  "boy-9fe92f65": "3.1-flash-tts-preview/Fenrir",
+  "boy-b9f821e7": "3.1-flash-tts-preview/Fenrir",
+  "boy-ccf32564": "3.1-flash-tts-preview/Fenrir",
+  "boy-f23d379d": "3.1-flash-tts-preview/Fenrir",
+  "girl-188f5850": "3.1-flash-tts-preview/Leda",
+  "girl-4238ec15": "3.1-flash-tts-preview/Leda",
+  "girl-8555bd63": "3.1-flash-tts-preview/Leda",
+  "girl-ac118e42": "3.1-flash-tts-preview/Leda",
+  "girl-cc32825a": "3.1-flash-tts-preview/Leda",
+  "pip-5b2d2513": "3.1-flash-tts-preview/Puck"
+ }
+}
